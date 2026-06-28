@@ -1,4 +1,4 @@
-import os, sys, json, time, re, gzip, csv
+import os, sys, json, time, re, gzip, csv, argparse
 import numpy as np
 
 # ── Dependencies ──────────────────────────────────────────────────────────────
@@ -25,17 +25,11 @@ from filters import (
 )
 
 # ── Config ────────────────────────────────────────────────────────────────────
-_DIR            = os.path.dirname(os.path.abspath(__file__))
-# Paths — override via env vars in Docker: CANDIDATES_FILE, JD_FILE, OUTPUT_CSV
-CANDIDATES_FILE = os.environ.get("CANDIDATES_FILE", os.path.join(
-    _DIR, "..", "[PUB] India_runs_data_and_ai_challenge",
-    "India_runs_data_and_ai_challenge", "candidates.jsonl"))
-JD_FILE         = os.environ.get("JD_FILE",    os.path.join(_DIR, "job_description.md"))
-OUTPUT_CSV      = os.environ.get("OUTPUT_CSV", os.path.join(_DIR, "team_submission.csv"))
-MODEL_PATH      = os.path.join(_DIR, "models", "bge-small-en-v1.5")   # local cache (for Docker)
-MODEL_NAME      = "BAAI/bge-small-en-v1.5"                             # HuggingFace fallback
-BM25_TOP_N      = 2000    # smart-gate size: top-2000 get embedded
-BATCH_SIZE      = 128
+_DIR       = os.path.dirname(os.path.abspath(__file__))
+MODEL_PATH = os.path.join(_DIR, "models", "bge-small-en-v1.5")
+MODEL_NAME = "BAAI/bge-small-en-v1.5"
+BM25_TOP_N = 2000
+BATCH_SIZE = 128
 BGE_QUERY_PREFIX = "Represent this sentence for searching relevant passages: "
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -225,8 +219,13 @@ def generate_reasoning(c, sem, kw, assess, edu, b_mult, final, rank):
     edu_str = f"{edu_list[0].get('institution','')} ({edu_list[0].get('tier','')})" if edu_list else ""
 
     notice = sigs.get("notice_period_days", 90)
-    notice_str = f"notice {notice}d {'✅' if notice <= 30 else '⚠️'}"
-    open_str = "open to work" if sigs.get("open_to_work_flag") else ""
+    if notice <= 30:
+        notice_str = f"notice {notice}d (immediate join)"
+    elif notice > 90:
+        notice_str = f"notice {notice}d (long notice, potential concern)"
+    else:
+        notice_str = f"notice {notice}d"
+    open_str = "open to work" if sigs.get("open_to_work_flag") else "not actively looking"
 
     parts = [f"{yoe:.0f}yr {title} in {loc}"]
     if top_skills: parts.append("; ".join(top_skills))
@@ -238,11 +237,38 @@ def generate_reasoning(c, sem, kw, assess, edu, b_mult, final, rank):
     parts.append(f"[final={final:.3f}]")
     return ". ".join(parts)
 
-# ── Main Pipeline ──────────────────────────────────────────────────────────────
+# ── Main Pipeline ─────────────────────────────────────────────────────────────
 def main():
+    # ── Argument parsing ──────────────────────────────────────────────────────
+    parser = argparse.ArgumentParser(description="Redrob AI Candidate Ranker — Team Lanzers")
+    parser.add_argument(
+        "--candidates",
+        default=os.environ.get("CANDIDATES_FILE", os.path.join(_DIR, "candidates.jsonl")),
+        help="Path to candidates.jsonl or candidates.jsonl.gz (default: ./candidates.jsonl)"
+    )
+    parser.add_argument(
+        "--out",
+        default=os.environ.get("OUTPUT_CSV", os.path.join(_DIR, "team_submission.csv")),
+        help="Output CSV path (default: ./team_submission.csv)"
+    )
+    parser.add_argument(
+        "--jd",
+        default=os.path.join(_DIR, "job_description.md"),
+        help="Path to job description markdown file (default: ./job_description.md)"
+    )
+    args = parser.parse_args()
+
+    CANDIDATES_FILE = args.candidates
+    OUTPUT_CSV      = args.out
+    JD_FILE         = args.jd
+
     t0_total = time.perf_counter()
     print("=" * 60)
-    print("  REDROB CANDIDATE RANKER")
+    print("  REDROB CANDIDATE RANKER — Team Lanzers")
+    print("=" * 60)
+    print(f"  Candidates : {CANDIDATES_FILE}")
+    print(f"  Output     : {OUTPUT_CSV}")
+    print(f"  JD         : {JD_FILE}")
     print("=" * 60)
 
     # 1. Load JD
@@ -251,8 +277,11 @@ def main():
         with open(JD_FILE, "r", encoding="utf-8") as f:
             jd_text = f.read()
     except FileNotFoundError:
+        print(f"      WARNING: {JD_FILE} not found — using built-in fallback JD text.")
         jd_text = ("Senior AI Engineer embeddings vector database pinecone qdrant faiss "
-                   "semantic search retrieval ranking NDCG python production fine-tuning lora qlora")
+                   "semantic search retrieval ranking NDCG python production fine-tuning lora qlora "
+                   "sentence transformers BGE information retrieval hybrid search reranking "
+                   "mlops evaluation framework learning to rank product company")
     jd_tokens = tokenize(jd_text)
 
     # 2. Read & hard-filter candidates
@@ -270,24 +299,24 @@ def main():
 
     # 3. BM25 score all survivors
     print("[3/7] BM25 scoring survivors...")
-    corpus = [tokenize(candidate_full_text(c)) for c in survivors]
-    bm25   = BM25Okapi(corpus)
+    corpus    = [tokenize(candidate_full_text(c)) for c in survivors]
+    bm25      = BM25Okapi(corpus)
     bm25_raw  = bm25.get_scores(jd_tokens)
     bm25_norm = bm25_raw / (bm25_raw.max() + 1e-9)
 
     # 4. Smart gate: BM25 + keyword_score → top-2000
     print("[4/7] Smart gate (BM25 + keyword_score) → top-2000...")
-    kw_gate  = np.array([keyword_score(c)[0] for c in survivors])
+    kw_gate     = np.array([keyword_score(c)[0] for c in survivors])
     gate_scores = 0.40 * bm25_norm + 0.60 * kw_gate
     gate_idx    = np.argsort(gate_scores)[::-1][:BM25_TOP_N]
     candidates  = [survivors[i] for i in gate_idx]
     bm25_gate   = bm25_norm[gate_idx]
     print(f"      {len(survivors)} → {len(candidates)} candidates")
 
-    # 5. Load BGE-small model (use local cache if available)
+    # 5. Load BGE-small model (local cache → HuggingFace fallback)
     print("[5/7] Loading BAAI/bge-small-en-v1.5...")
-    model_src = MODEL_PATH if os.path.isdir(MODEL_PATH) else MODEL_NAME
-    model = SentenceTransformer(model_src)
+    model_src    = MODEL_PATH if os.path.isdir(MODEL_PATH) else MODEL_NAME
+    model        = SentenceTransformer(model_src)
     jd_chunks    = [BGE_QUERY_PREFIX + jd_text[i:i+800] for i in range(0, len(jd_text), 800)]
     jd_embedding = model.encode(jd_chunks, batch_size=BATCH_SIZE, show_progress_bar=False).mean(axis=0)
 
@@ -307,8 +336,8 @@ def main():
         cursor += n
     cand_embs = np.array(cand_embs)
 
-    cand_norm = cand_embs / (np.linalg.norm(cand_embs, axis=1, keepdims=True) + 1e-9)
-    jd_norm   = jd_embedding / (np.linalg.norm(jd_embedding) + 1e-9)
+    cand_norm  = cand_embs / (np.linalg.norm(cand_embs, axis=1, keepdims=True) + 1e-9)
+    jd_norm    = jd_embedding / (np.linalg.norm(jd_embedding) + 1e-9)
     sem_scores = cand_norm @ jd_norm
 
     # 7. Final scoring + write CSV
@@ -319,11 +348,9 @@ def main():
         assess   = assessment_score(c)
         edu      = education_score(c)
         b_mult   = behavioral_multiplier(c)
-
-        dup_pen = -0.05 if not passes_duplicate_description_filter(c) else 0.0
-        base    = 0.40 * sem_scores[i] + 0.10 * bm25_gate[i] + 0.33 * kw + 0.12 * assess + 0.05 * edu
-        final   = max(0.0, base * b_mult + dup_pen)
-
+        dup_pen  = -0.05 if not passes_duplicate_description_filter(c) else 0.0
+        base     = 0.40 * sem_scores[i] + 0.10 * bm25_gate[i] + 0.33 * kw + 0.12 * assess + 0.05 * edu
+        final    = max(0.0, base * b_mult + dup_pen)
         results.append({
             "c": c, "final": final,
             "sem": sem_scores[i], "kw": kw,
@@ -336,8 +363,8 @@ def main():
         writer = csv.writer(f)
         writer.writerow(["candidate_id", "rank", "score", "reasoning"])
         for rank, r in enumerate(results[:100], 1):
-            c     = r["c"]
-            cid   = c.get("candidate_id", "")
+            c      = r["c"]
+            cid    = c.get("candidate_id", "")
             reason = generate_reasoning(
                 c, r["sem"], r["kw"], r["assess"], r["edu"], r["b_mult"], r["final"], rank
             )
