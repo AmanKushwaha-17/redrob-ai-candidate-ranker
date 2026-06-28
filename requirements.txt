@@ -1,0 +1,8 @@
+# Core ranking dependencies
+rank_bm25>=0.2.2
+sentence-transformers>=2.6.0
+torch>=2.0.0
+numpy>=1.24.0
+
+# torch CPU-only install (use this command instead of above torch line in Docker):
+# pip install torch --index-url https://download.pytorch.org/whl/cpu

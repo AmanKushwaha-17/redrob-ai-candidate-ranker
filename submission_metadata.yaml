@@ -1,0 +1,48 @@
+team_name: "Lanzers"
+primary_contact:
+  name: "Aman Kushwaha"
+  email: "amankushwaha2323@gmail.com"
+  phone: "+91-8858752136"
+
+team_members:
+  - name: "Aman Kushwaha"
+    email: "amankushwaha2323@gmail.com"
+    role: "ML Engineer"
+
+github_repo: "https://github.com/AmanKushwaha-17/redrob-ai-candidate-ranker"
+
+sandbox_link: "https://aman17005-redrob-candidate-ranker.hf.space"
+
+reproduce_command: "python ranker.py"
+
+compute:
+  platform: "Windows 11 PC"
+  cpu_cores: 12
+  ram_gb: 16
+  python_version: "3.11"
+  os: "Windows"
+  uses_gpu_for_inference: false
+  has_network_during_ranking: false
+  pre_computation_required: false
+  pre_computation_time_minutes: 0
+
+ai_tools_used:
+  - "Claude"
+  - "Gemini"
+
+ai_usage_summary: |
+  Used Claude and Gemini to help design the BM25 + keyword smart gate, implement the evaluation pipeline, and optimize the sentence-transformer inference loop to fit within the 5-minute constraint.
+
+methodology_summary: |
+  Two-stage ranking pipeline.
+  Stage 1 (Smart Gate): BM25 + keyword domain scoring reduces 9,603 valid candidates to the top 2,000 to save compute.
+  Stage 2 (Embedding): Uses local BAAI/bge-small-en-v1.5 to encode the top 2,000 candidates.
+  Final score is a weighted combination of: semantic similarity (40%), BM25 (10%), keyword domain (33%), assessment (12%), and education (5%), modified by a behavioral multiplier (notice period, GitHub activity).
+  Runtime is ~226 seconds on a 12-core CPU.
+
+declarations:
+  read_submission_spec: true
+  code_is_original_work: true
+  no_collusion: true
+  honeypot_check_done: true
+  reproduction_tested: true

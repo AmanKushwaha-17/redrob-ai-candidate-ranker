@@ -1,0 +1,9 @@
+# Model weights (too large for GitHub, auto-downloaded from HuggingFace)
+models/**/*.safetensors
+models/**/*.bin
+models/**/*.pt
+
+# Python
+__pycache__/
+*.pyc
+.env
