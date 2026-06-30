@@ -26,16 +26,16 @@
 
 These are deterministic O(1) checks that run on all 100k candidates in ~10s. Every filter maps to an explicit disqualifier stated or implied in the JD.
 
-| Filter | Drop Reason |
+| Filter                           | Drop Reason                                                                                                                                                                  |
 | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Honeypot** | Profiles with impossible data (e.g. 0 months tenure + Expert proficiency). Synthetic noise injected to catch copy-paste submissions. |
-| **Location** | JD requires India-based or relocation-willing candidates. Pure remote-only or overseas profiles are out. |
-| **Consulting** | Candidates who spent 100% of their career at service firms (TCS, Infosys, Wipro, etc.) with no product-company experience. These engineers rarely own end-to-end ML systems. |
-| **Closed Source** | 5+ year engineers with zero external validation (no GitHub, papers, or talks). JD explicitly values open-source contribution. |
-| **Title Chaser** | Average tenure ≤ 1.5 years with inflated Senior/Principal titles. Pattern indicates resume padding, not skill depth. |
-| **Architecture Astronaut** | Senior engineers who haven't shipped production code in 18+ months. JD needs hands-on builders, not architects. |
-| **Domain Expertise** | CV/Speech/Robotics specialists with no NLP or IR exposure. Domain mismatch for an embeddings/retrieval role. |
-| **Title Mismatch** | Profiles with AI keywords but non-engineering titles (Marketing, HR, Finance). Common false-positive trap. |
+| **Honeypot**               | Profiles with impossible data (e.g. 0 months tenure + Expert proficiency). Synthetic noise injected to catch copy-paste submissions.                                         |
+| **Location**               | JD requires India-based or relocation-willing candidates. Pure remote-only or overseas profiles are out.                                                                     |
+| **Consulting**             | Candidates who spent 100% of their career at service firms (TCS, Infosys, Wipro, etc.) with no product-company experience. These engineers rarely own end-to-end ML systems. |
+| **Closed Source**          | 5+ year engineers with zero external validation (no GitHub, papers, or talks). JD explicitly values open-source contribution.                                                |
+| **Title Chaser**           | Average tenure ≤ 1.5 years with inflated Senior/Principal titles. Pattern indicates resume padding, not skill depth.                                                        |
+| **Architecture Astronaut** | Senior engineers who haven't shipped production code in 18+ months. JD needs hands-on builders, not architects.                                                              |
+| **Domain Expertise**       | CV/Speech/Robotics specialists with no NLP or IR exposure. Domain mismatch for an embeddings/retrieval role.                                                                 |
+| **Title Mismatch**         | Profiles with AI keywords but non-engineering titles (Marketing, HR, Finance). Common false-positive trap.                                                                   |
 
 ---
 
@@ -81,12 +81,12 @@ Model: `BAAI/bge-small-en-v1.5` (512-dim, ~130MB, CPU-only, ~207s for 2000 candi
 
 **Why BGE-small over all-MiniLM-L6-v2?**
 
-| | MiniLM-L6 | BGE-small |
+|                 | MiniLM-L6    | BGE-small                           |
 | --------------- | ------------ | ----------------------------------- |
-| Sem score range | 0.107–0.586 | 0.621–0.840 |
-| Trained for | General NLU | Retrieval / search (BEIR, MS-MARCO) |
-| Query prefix | No | Yes — asymmetric encoding |
-| Dim | 384 | 512 |
+| Sem score range | 0.107–0.586 | 0.621–0.840                        |
+| Trained for     | General NLU  | Retrieval / search (BEIR, MS-MARCO) |
+| Query prefix    | No           | Yes — asymmetric encoding          |
+| Dim             | 384          | 512                                 |
 
 BGE's asymmetric encoding uses a query-side prefix for the JD and plain passage encoding for candidates. This is how it was trained — using it correctly gives a ~25% better semantic separation on retrieval tasks.
 
@@ -101,40 +101,40 @@ base  = 0.40×semantic + 0.10×BM25_norm + 0.33×keyword + 0.12×assessment + 0.
 final = base × behavioral_multiplier  (clamped [0.5, 1.15])
 ```
 
-| Signal | Weight | Reason |
+| Signal                              | Weight        | Reason                                                                                                                                |
 | ----------------------------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| **Semantic** (BGE cosine sim) | 40% | Captures intent match beyond keywords — finds candidates who describe vector search without saying "vector search" |
-| **Keyword score** (tiered) | 33% | Domain depth signal: Tier 1 retrieval skills weighted higher than general ML. Proficiency + tenure prevent padding. |
-| **Assessment score** | 12% | Platform-verified test results. Only Tier 1 relevant skill assessments count; unrelated scores get 50% weight. |
-| **Education** | 5% | Tier 1 institutions (IIT, IISc, BITS, MIT) signal baseline rigor. Non-CS degrees get 50% reduction. |
-| **BM25 norm** | 10% | Keeps exact JD-term density as a small tiebreaker signal. |
-| **Behavioral multiplier** | ×[0.5–1.15] | Boosts: open-to-work, notice ≤30d, GitHub activity, recruiter engagement. Penalises: inactive >180d, low response rate, long notice. |
+| **Semantic** (BGE cosine sim) | 40%           | Captures intent match beyond keywords — finds candidates who describe vector search without saying "vector search"                   |
+| **Keyword score** (tiered)    | 33%           | Domain depth signal: Tier 1 retrieval skills weighted higher than general ML. Proficiency + tenure prevent padding.                   |
+| **Assessment score**          | 12%           | Platform-verified test results. Only Tier 1 relevant skill assessments count; unrelated scores get 50% weight.                        |
+| **Education**                 | 5%            | Tier 1 institutions (IIT, IISc, BITS, MIT) signal baseline rigor. Non-CS degrees get 50% reduction.                                   |
+| **BM25 norm**                 | 10%           | Keeps exact JD-term density as a small tiebreaker signal.                                                                             |
+| **Behavioral multiplier**     | ×[0.5–1.15] | Boosts: open-to-work, notice ≤30d, GitHub activity, recruiter engagement. Penalises: inactive >180d, low response rate, long notice. |
 
 ---
 
 ## Constraint Compliance
 
-| Constraint | Limit | Actual |
+| Constraint | Limit    | Actual                  |
 | ---------- | -------- | ----------------------- |
-| Runtime | ≤ 300s | ~232s ✅ (68s headroom) |
-| RAM | ≤ 16 GB | ~794 MB ✅ |
-| Disk | ≤ 5 GB | ~595 MB ✅ |
-| Compute | CPU only | CPU only ✅ |
-| Network | Off | No API calls ✅ |
+| Runtime    | ≤ 300s  | ~232s ✅ (68s headroom) |
+| RAM        | ≤ 16 GB | ~794 MB ✅              |
+| Disk       | ≤ 5 GB  | ~595 MB ✅              |
+| Compute    | CPU only | CPU only ✅             |
+| Network    | Off      | No API calls ✅         |
 
 ---
 
 ## Files
 
-| File | Purpose |
-| ----------------------------- | ---------------------------------------------------------------------------------------------- |
-| `ranker.py` | **Production entry point.** Run this to generate `team_submission.csv`. |
-| `filters.py` | All 8 hard-filter functions (Stage 1). |
-| `download_model.py` | **Pre-computation step.** Downloads BGE model weights locally before offline ranking. |
-| `job_description.md` | Job description used for JD embedding in the ranking pipeline. |
-| `test_semantic.py` | Full benchmark with constraint report, timing breakdown, and top-10 display. For testing only. |
-| `view_final_100.py` | Utility to inspect the final ranked output. |
-| `Lanzers.csv` | Output: top-100 candidates with rank, score, reasoning. |
+| File                          | Purpose                                                                                         |
+| ----------------------------- | ----------------------------------------------------------------------------------------------- |
+| `ranker.py`                 | **Production entry point.** Run this to generate `team_submission.csv`.                 |
+| `filters.py`                | All 8 hard-filter functions (Stage 1).                                                          |
+| `download_model.py`         | **Pre-computation step.** Downloads BGE model weights locally before offline ranking.     |
+| `job_description.md`        | Job description used for JD embedding in the ranking pipeline.                                  |
+| `test_semantic.py`          | Full benchmark with constraint report, timing breakdown, and top-10 display. For testing only.  |
+| `view_final_100.py`         | Utility to inspect the final ranked output.                                                     |
+| `Lanzers.csv`               | Output: top-100 candidates with rank, score, reasoning.                                         |
 | `models/bge-small-en-v1.5/` | Local model cache — config and tokenizer files only. Weights downloaded via download_model.py. |
 
 ---
@@ -143,17 +143,18 @@ final = base × behavioral_multiplier  (clamped [0.5, 1.15])
 
 ### Prerequisites
 
-| Requirement | Version |
-|-------------|---------|
-| Python | 3.9+ |
-| RAM | ≥ 4 GB (pipeline uses ~794 MB peak) |
-| Disk | ≥ 700 MB (model ~130 MB + intermediates) |
-| Network | Only for Step 2 (model download). Step 3 is fully offline. |
-| GPU | Not required — CPU only |
+| Requirement | Version                                                    |
+| ----------- | ---------------------------------------------------------- |
+| Python      | 3.9+                                                       |
+| RAM         | ≥ 4 GB (pipeline uses ~794 MB peak)                       |
+| Disk        | ≥ 700 MB (model ~130 MB + intermediates)                  |
+| Network     | Only for Step 2 (model download). Step 3 is fully offline. |
+| GPU         | Not required — CPU only                                   |
 
 ---
 
 ### Step 1 — Clone the repository
+
 ```bash
 git clone https://github.com/AmanKushwaha-17/redrob-ai-candidate-ranker.git
 cd redrob-ai-candidate-ranker
@@ -162,16 +163,19 @@ cd redrob-ai-candidate-ranker
 ---
 
 ### Step 2 — Install dependencies
+
 ```bash
 pip install -r requirements.txt
 ```
 
 Or install manually:
+
 ```bash
 pip install rank_bm25 sentence-transformers torch numpy
 ```
 
 > **CPU-only Docker environments:** Replace the `torch` line with:
+>
 > ```bash
 > pip install torch --index-url https://download.pytorch.org/whl/cpu
 > ```
@@ -179,6 +183,7 @@ pip install rank_bm25 sentence-transformers torch numpy
 ---
 
 ### Step 3 — Download the model *(one-time, needs internet)*
+
 ```bash
 python download_model.py
 ```
@@ -208,29 +213,33 @@ redrob-ai-candidate-ranker/
 ### Step 5 — Run the ranker *(offline, CPU only, ≤ 5 minutes)*
 
 **Basic usage (files in same directory):**
+
 ```bash
 python ranker.py
 ```
 
 **Explicit paths (recommended for reproducibility):**
+
 ```bash
 python ranker.py --candidates ./candidates.jsonl --out ./Lanzers.csv
 ```
 
 **Custom candidates path and output:**
+
 ```bash
 python ranker.py --candidates /path/to/candidates.jsonl --out /path/to/output.csv
 ```
 
 **All available flags:**
 
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--candidates` | `./candidates.jsonl` | Path to `candidates.jsonl` or `.jsonl.gz` |
-| `--out` | `./Lanzers.csv` | Output CSV path |
-| `--jd` | `./job_description.md` | Path to job description file |
+| Flag             | Default                  | Description                                  |
+| ---------------- | ------------------------ | -------------------------------------------- |
+| `--candidates` | `./candidates.jsonl`   | Path to`candidates.jsonl` or `.jsonl.gz` |
+| `--out`        | `./Lanzers.csv`        | Output CSV path                              |
+| `--jd`         | `./job_description.md` | Path to job description file                 |
 
 **Environment variable overrides:**
+
 ```bash
 CANDIDATES_FILE=./data/candidates.jsonl OUTPUT_CSV=./out/Lanzers.csv python ranker.py
 ```
@@ -263,6 +272,7 @@ CANDIDATES_FILE=./data/candidates.jsonl OUTPUT_CSV=./out/Lanzers.csv python rank
 ```
 
 Output file `Lanzers.csv` — 101 lines total (1 header + 100 ranked candidates):
+
 ```
 candidate_id,rank,score,reasoning
 CAND_XXXXXXX,1,0.97964,"..."
@@ -274,14 +284,14 @@ CAND_XXXXXXX,100,0.81779,"..."
 
 ### Timing Breakdown
 
-| Step | Time |
-|------|------|
-| Hard filters (100k candidates) | ~10s |
-| BM25 scoring (~9,600 survivors) | ~1.5s |
-| Smart gate → top-2000 | ~1s |
-| BGE-small embedding (2,000 × sections) | ~207s |
-| Final scoring + CSV write | ~2s |
-| **Total** | **~232s** ✅ (68s under 300s limit) |
+| Step                                    | Time                                      |
+| --------------------------------------- | ----------------------------------------- |
+| Hard filters (100k candidates)          | ~10s                                      |
+| BM25 scoring (~9,600 survivors)         | ~1.5s                                     |
+| Smart gate → top-2000                  | ~1s                                       |
+| BGE-small embedding (2,000 × sections) | ~207s                                     |
+| Final scoring + CSV write               | ~2s                                       |
+| **Total**                         | **~232s** ✅ (68s under 300s limit) |
 
 ---
 
@@ -294,4 +304,3 @@ Step 5 (ranker.py) is the **ranking step** — it runs fully offline, CPU-only, 
 # Inside the sandbox (timed window starts here):
 python ranker.py --candidates ./candidates.jsonl --out ./Lanzers.csv
 ```
-
