@@ -139,30 +139,159 @@ final = base × behavioral_multiplier  (clamped [0.5, 1.15])
 
 ---
 
-## How to Reproduce
+## How to Run
 
-### Step 1 — Install dependencies
+### Prerequisites
+
+| Requirement | Version |
+|-------------|---------|
+| Python | 3.9+ |
+| RAM | ≥ 4 GB (pipeline uses ~794 MB peak) |
+| Disk | ≥ 700 MB (model ~130 MB + intermediates) |
+| Network | Only for Step 2 (model download). Step 3 is fully offline. |
+| GPU | Not required — CPU only |
+
+---
+
+### Step 1 — Clone the repository
+```bash
+git clone https://github.com/AmanKushwaha-17/redrob-ai-candidate-ranker.git
+cd redrob-ai-candidate-ranker
+```
+
+---
+
+### Step 2 — Install dependencies
+```bash
+pip install -r requirements.txt
+```
+
+Or install manually:
 ```bash
 pip install rank_bm25 sentence-transformers torch numpy
 ```
 
-### Step 2 — Download model (pre-computation, needs network, run once)
+> **CPU-only Docker environments:** Replace the `torch` line with:
+> ```bash
+> pip install torch --index-url https://download.pytorch.org/whl/cpu
+> ```
+
+---
+
+### Step 3 — Download the model *(one-time, needs internet)*
 ```bash
 python download_model.py
 ```
-Downloads `BAAI/bge-small-en-v1.5` (~130 MB) from HuggingFace and saves it to
-`models/bge-small-en-v1.5/`. After this step, no network access is needed.
 
-### Step 3 — Run the ranker (no network, CPU only, ≤ 300s)
+This downloads `BAAI/bge-small-en-v1.5` (~130 MB) from HuggingFace and saves it to
+`models/bge-small-en-v1.5/`. **Run this once before going offline.**
+After this step, no network access is needed for ranking.
+
+---
+
+### Step 4 — Place the candidates file
+
+Copy or move `candidates.jsonl` (or `candidates.jsonl.gz`) into the same folder as `ranker.py`:
+
+```
+redrob-ai-candidate-ranker/
+  ├── ranker.py
+  ├── filters.py
+  ├── candidates.jsonl     ← place it here
+  ├── job_description.md
+  └── models/
+        └── bge-small-en-v1.5/
+```
+
+---
+
+### Step 5 — Run the ranker *(offline, CPU only, ≤ 5 minutes)*
+
+**Basic usage (files in same directory):**
+```bash
+python ranker.py
+```
+
+**Explicit paths (recommended for reproducibility):**
 ```bash
 python ranker.py --candidates ./candidates.jsonl --out ./Lanzers.csv
 ```
 
-Output: `Lanzers.csv` — 100 ranked candidates with scores and reasoning.
+**Custom candidates path and output:**
+```bash
+python ranker.py --candidates /path/to/candidates.jsonl --out /path/to/output.csv
+```
 
-> **Note:** `--candidates` defaults to `./candidates.jsonl` and `--out` defaults to `./Lanzers.csv`.
-> You can omit them if the files are in the same directory as `ranker.py`.
+**All available flags:**
 
-> **Stage 3 reproduction note:** Steps 1 and 2 are pre-computation and may be run before
-> the sandboxed timing window begins. Step 3 (ranker.py) is the ranking step — it runs
-> fully offline, CPU-only, and completes in ~232s on a 12-core machine.
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--candidates` | `./candidates.jsonl` | Path to `candidates.jsonl` or `.jsonl.gz` |
+| `--out` | `./Lanzers.csv` | Output CSV path |
+| `--jd` | `./job_description.md` | Path to job description file |
+
+**Environment variable overrides:**
+```bash
+CANDIDATES_FILE=./data/candidates.jsonl OUTPUT_CSV=./out/Lanzers.csv python ranker.py
+```
+
+---
+
+### Expected Output
+
+```
+============================================================
+  REDROB CANDIDATE RANKER — Team Lanzers
+============================================================
+  Candidates : ./candidates.jsonl
+  Output     : ./Lanzers.csv
+============================================================
+[1/7] Loading Job Description...
+[2/7] Reading and hard-filtering candidates...
+      Survivors: ~9600
+[3/7] BM25 scoring survivors...
+[4/7] Smart gate (BM25 + keyword_score) → top-2000...
+      ~9600 → 2000 candidates
+[5/7] Loading BAAI/bge-small-en-v1.5...
+[6/7] Embedding 2000 candidates...
+[7/7] Scoring and writing submission...
+  [ 1] <name> | <title> | final=0.979 sem=0.841 kw=0.873
+  ...
+  [10] <name> | <title> | final=0.924 sem=0.801 kw=0.712
+
+✅ Done in ~232s  |  Submission → ./Lanzers.csv
+```
+
+Output file `Lanzers.csv` — 101 lines total (1 header + 100 ranked candidates):
+```
+candidate_id,rank,score,reasoning
+CAND_XXXXXXX,1,0.97964,"..."
+...
+CAND_XXXXXXX,100,0.81779,"..."
+```
+
+---
+
+### Timing Breakdown
+
+| Step | Time |
+|------|------|
+| Hard filters (100k candidates) | ~10s |
+| BM25 scoring (~9,600 survivors) | ~1.5s |
+| Smart gate → top-2000 | ~1s |
+| BGE-small embedding (2,000 × sections) | ~207s |
+| Final scoring + CSV write | ~2s |
+| **Total** | **~232s** ✅ (68s under 300s limit) |
+
+---
+
+### Stage 3 Reproduction (Organizer Sandbox)
+
+Steps 1–3 (install + model download) are **pre-computation** and may run outside the timed window.
+Step 5 (ranker.py) is the **ranking step** — it runs fully offline, CPU-only, within 300s.
+
+```bash
+# Inside the sandbox (timed window starts here):
+python ranker.py --candidates ./candidates.jsonl --out ./Lanzers.csv
+```
+
