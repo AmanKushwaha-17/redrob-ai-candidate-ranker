@@ -243,13 +243,15 @@ def main():
     parser = argparse.ArgumentParser(description="Redrob AI Candidate Ranker — Team Lanzers")
     parser.add_argument(
         "--candidates",
-        default=os.environ.get("CANDIDATES_FILE", os.path.join(_DIR, "candidates.jsonl")),
-        help="Path to candidates.jsonl or candidates.jsonl.gz (default: ./candidates.jsonl)"
+        default=os.environ.get("CANDIDATES_FILE", os.path.join(
+            _DIR, "..", "[PUB] India_runs_data_and_ai_challenge",
+            "India_runs_data_and_ai_challenge", "candidates.jsonl")),
+        help="Path to candidates.jsonl or candidates.jsonl.gz"
     )
     parser.add_argument(
         "--out",
-        default=os.environ.get("OUTPUT_CSV", os.path.join(_DIR, "team_submission.csv")),
-        help="Output CSV path (default: ./team_submission.csv)"
+        default=os.environ.get("OUTPUT_CSV", os.path.join(_DIR, "Lanzers.csv")),
+        help="Output CSV path (default: ./Lanzers.csv)"
     )
     parser.add_argument(
         "--jd",
