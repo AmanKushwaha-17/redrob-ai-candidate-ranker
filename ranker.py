@@ -243,9 +243,7 @@ def main():
     parser = argparse.ArgumentParser(description="Redrob AI Candidate Ranker — Team Lanzers")
     parser.add_argument(
         "--candidates",
-        default=os.environ.get("CANDIDATES_FILE", os.path.join(
-            _DIR, "..", "[PUB] India_runs_data_and_ai_challenge",
-            "India_runs_data_and_ai_challenge", "candidates.jsonl")),
+        default=os.environ.get("CANDIDATES_FILE", os.path.join(_DIR, "candidates.jsonl")),
         help="Path to candidates.jsonl or candidates.jsonl.gz"
     )
     parser.add_argument(

@@ -155,10 +155,13 @@ Downloads `BAAI/bge-small-en-v1.5` (~130 MB) from HuggingFace and saves it to
 
 ### Step 3 — Run the ranker (no network, CPU only, ≤ 300s)
 ```bash
-python ranker.py
+python ranker.py --candidates ./candidates.jsonl --out ./Lanzers.csv
 ```
 
 Output: `Lanzers.csv` — 100 ranked candidates with scores and reasoning.
+
+> **Note:** `--candidates` defaults to `./candidates.jsonl` and `--out` defaults to `./Lanzers.csv`.
+> You can omit them if the files are in the same directory as `ranker.py`.
 
 > **Stage 3 reproduction note:** Steps 1 and 2 are pre-computation and may be run before
 > the sandboxed timing window begins. Step 3 (ranker.py) is the ranking step — it runs
